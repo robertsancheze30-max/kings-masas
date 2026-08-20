@@ -295,6 +295,26 @@
     margin-top: 10px;
   }
 
+  .bank-info-box {
+    background: #FBEBD9;
+    border: 1px solid #E8871E;
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 16px;
+  }
+  .bank-info-title { font-weight: 800; font-size: 14px; color: #9C2F1C; margin-bottom: 6px; }
+  .bank-info-amount { font-weight: 800; font-size: 15px; color: #C1442A; margin-bottom: 8px; }
+  .bank-info-row { font-size: 13px; color: #4a3527; padding: 2px 0; }
+  .toggle-nocheck {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #6b5645;
+    margin-top: 14px;
+  }
+  .toggle-nocheck input { width: 18px; height: 18px; }
+
   /* ---------- CONFIRMATION ---------- */
   .confirm-icon { font-size: 46px; text-align: center; margin-bottom: 6px; }
   .confirm-title {
@@ -356,17 +376,46 @@
     <label class="field-label">Hora de entrega</label>
     <select id="deliveryTime"></select>
 
-    <label class="field-label">Tu nombre</label>
-    <input type="text" id="customerName" placeholder="Nombre y apellido" />
+    <label class="field-label">Tu nombre *</label>
+    <input type="text" id="customerName" placeholder="Nombre y apellido" required />
 
-    <label class="field-label">Teléfono de contacto</label>
-    <input type="tel" id="customerPhone" placeholder="+56 9 1234 5678" />
+    <label class="field-label">Teléfono de contacto *</label>
+    <input type="tel" id="customerPhone" placeholder="+56 9 1234 5678" required />
 
     <label class="field-label">Nota adicional (opcional)</label>
     <textarea id="orderNote" placeholder="Ej. sin picante, tocar el timbre 2 veces..."></textarea>
 
+    <div class="bank-info-box" id="bankInfoBox">
+      <div class="bank-info-title">💳 Abono del 50% para confirmar tu pedido</div>
+      <div class="bank-info-amount">Debes transferir: <span id="advanceAmount">$0</span></div>
+      <div class="bank-info-row"><b>Nombre:</b> Reyimar Sanchez</div>
+      <div class="bank-info-row"><b>RUT:</b> 25.671.685-2</div>
+      <div class="bank-info-row"><b>Banco:</b> Banco Falabella</div>
+      <div class="bank-info-row"><b>Cuenta:</b> Cuenta Corriente N° 19800813425</div>
+      <div class="bank-info-row"><b>Correo:</b> reyimars@gmail.com</div>
+    </div>
+
+    <div id="paymentFieldsBox">
+      <label class="field-label">N° de comprobante / referencia *</label>
+      <input type="text" id="transferRef" placeholder="Ej. N° operación de la transferencia" />
+
+      <label class="field-label">Foto del comprobante *</label>
+      <input type="file" id="transferPhoto" accept="image/*" capture="environment" />
+      <img id="transferPhotoPreview" style="display:none; max-width:100%; border-radius:12px; margin-top:8px;" />
+    </div>
+
+    <label class="toggle-nocheck">
+      <input type="checkbox" id="noPaymentCheck" />
+      No puedo transferir ahora, prefiero que me contacten
+    </label>
+
+    <div id="contactMsgBox" style="display:none;">
+      <label class="field-label">Mensaje para la tienda *</label>
+      <textarea id="contactMsg" placeholder="Cuéntanos por qué no puedes transferir ahora y cómo prefieres coordinar el pago"></textarea>
+    </div>
+
     <button class="submit-btn" id="submitOrder">Confirmar pedido</button>
-    <div class="payment-note">💵 Pagas en efectivo o transferencia al recibir/retirar</div>
+    <div class="payment-note">💵 El otro 50% se paga en efectivo o transferencia al recibir/retirar</div>
   </div>
 </div>
 
@@ -526,7 +575,46 @@
     totalRow.className = "receipt-row total";
     totalRow.innerHTML = `<span>Total</span><span>${fmt(cartTotalAmount())}</span>`;
     box.appendChild(totalRow);
+    document.getElementById("advanceAmount").textContent = fmt(Math.round(cartTotalAmount() / 2));
   }
+
+  // ---------- FOTO DEL COMPROBANTE (comprimida a base64) ----------
+  // ---------- TOGGLE "NO PUEDO TRANSFERIR AHORA" ----------
+  const noPaymentCheck = document.getElementById("noPaymentCheck");
+  const bankInfoBox = document.getElementById("bankInfoBox");
+  const paymentFieldsBox = document.getElementById("paymentFieldsBox");
+  const contactMsgBox = document.getElementById("contactMsgBox");
+  noPaymentCheck.onchange = () => {
+    const noPay = noPaymentCheck.checked;
+    bankInfoBox.style.display = noPay ? "none" : "block";
+    paymentFieldsBox.style.display = noPay ? "none" : "block";
+    contactMsgBox.style.display = noPay ? "block" : "none";
+  };
+
+  let transferPhotoData = "";
+  document.getElementById("transferPhoto").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) { transferPhotoData = ""; return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxW = 900;
+        const scale = Math.min(1, maxW / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        transferPhotoData = canvas.toDataURL("image/jpeg", 0.7);
+        const preview = document.getElementById("transferPhotoPreview");
+        preview.src = transferPhotoData;
+        preview.style.display = "block";
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // toggle retiro / domicilio
   const optRetiro = document.getElementById("optRetiro");
@@ -575,22 +663,57 @@
       alert("Tu pedido está vacío");
       return;
     }
-    if (!name || !phone) {
-      alert("Falta tu nombre o teléfono");
+    if (!name && !phone) {
+      alert("Debes ingresar tu nombre y tu teléfono para poder enviar el pedido");
+      document.getElementById("customerName").focus();
+      return;
+    }
+    if (!name) {
+      alert("Falta tu nombre. Es obligatorio para poder enviar el pedido");
+      document.getElementById("customerName").focus();
+      return;
+    }
+    if (!phone) {
+      alert("Falta tu teléfono. Es obligatorio para poder enviar el pedido");
+      document.getElementById("customerPhone").focus();
       return;
     }
     if (deliveryType === "domicilio" && !address) {
       alert("Falta la dirección de entrega");
       return;
     }
+    const noPay = noPaymentCheck.checked;
+    const transferRef = document.getElementById("transferRef").value.trim();
+    const contactMsg = document.getElementById("contactMsg").value.trim();
+
+    if (!noPay && !transferRef) {
+      alert("Falta el N° de comprobante/referencia de tu transferencia");
+      document.getElementById("transferRef").focus();
+      return;
+    }
+    if (!noPay && !transferPhotoData) {
+      alert("Falta la foto del comprobante de transferencia");
+      return;
+    }
+    if (noPay && !contactMsg) {
+      alert("Cuéntanos brevemente por qué no puedes transferir ahora, así tu hermana sabe cómo ayudarte");
+      document.getElementById("contactMsg").focus();
+      return;
+    }
 
     const orderRef = db.ref("orders").push();
+    const total = cartTotalAmount();
     const order = {
       items: Object.entries(cart).map(([id, qty]) => {
         const p = products.find((x) => x.id === id);
         return { id, name: p.name, price: p.price, qty };
       }),
-      total: cartTotalAmount(),
+      total: total,
+      advance: Math.round(total / 2),
+      needsContact: noPay,
+      transferRef: noPay ? "" : transferRef,
+      transferPhoto: noPay ? "" : transferPhotoData,
+      contactMsg: noPay ? contactMsg : "",
       deliveryType,
       address: deliveryType === "domicilio" ? address : "",
       date: dateInput.value,
@@ -598,7 +721,7 @@
       customerName: name,
       customerPhone: phone,
       note: document.getElementById("orderNote").value.trim(),
-      status: "nuevo",
+      status: "pendiente_pago",
       timestamp: Date.now(),
     };
 
@@ -632,6 +755,15 @@
       cart = {};
       renderProducts();
       updateCartBar();
+      document.getElementById("transferRef").value = "";
+      document.getElementById("transferPhoto").value = "";
+      document.getElementById("transferPhotoPreview").style.display = "none";
+      transferPhotoData = "";
+      document.getElementById("contactMsg").value = "";
+      noPaymentCheck.checked = false;
+      bankInfoBox.style.display = "block";
+      paymentFieldsBox.style.display = "block";
+      contactMsgBox.style.display = "none";
       startTrackingListener();
     }).catch((err) => {
       alert("No se pudo enviar el pedido. Revisa tu conexión e intenta de nuevo.");
@@ -648,10 +780,16 @@
 
   // ---------- BANNER DE ESTADO DEL PEDIDO (tiempo real vía Firebase) ----------
   const STATUS_INFO = {
+    pendiente_pago: {
+      icon: "⏳",
+      title: "Verificando tu pago",
+      sub: "Estamos confirmando tu comprobante de transferencia",
+      klass: "st-nuevo",
+    },
     nuevo: {
       icon: "🧾",
-      title: "Recibimos tu pedido",
-      sub: "Estamos por confirmarlo, un momento...",
+      title: "¡Pago confirmado!",
+      sub: "Ya estamos por empezar a preparar tu pedido",
       klass: "st-nuevo",
     },
     confirmado: {
@@ -705,7 +843,7 @@
     }
 
     banner.className = "status-banner visible " + info.klass;
-    const canCancel = myOrder.status === "nuevo";
+    const canCancel = myOrder.status === "pendiente_pago";
     banner.innerHTML = `
       <div class="sb-icon">${info.icon}</div>
       <div>

@@ -449,19 +449,40 @@
         <div class="order-header">
           <div>
             <div class="order-name">${o.customerName}</div>
-            <div class="order-when">${o.date} · ${o.time}</div>
+            <div class="order-when" data-action="edit-when" style="cursor:pointer; text-decoration:underline dotted;">${o.date} · ${o.time} ✏️</div>
           </div>
           <div class="order-type">${o.deliveryType === "domicilio" ? "🛵 Domicilio" : "🏠 Retiro"}</div>
+        </div>
+        <div class="order-when-edit" style="display:none; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+          <input type="date" class="edit-date-input" value="${o.date}" style="padding:8px; border-radius:8px; border:1px solid #E3D2B8; font-size:13px;" />
+          <input type="time" class="edit-time-input" value="${o.time}" style="padding:8px; border-radius:8px; border:1px solid #E3D2B8; font-size:13px;" />
+          <button class="icon-btn" data-action="save-when" style="width:auto; padding:0 12px;">Guardar</button>
         </div>
         <div class="order-items">${itemsHtml}</div>
         <div class="order-total">Total: ${fmt(o.total)}</div>
         ${o.address ? `<div class="order-contact">📍 ${o.address}</div>` : ""}
         <div class="order-contact">📞 ${o.customerPhone}</div>
         ${o.note ? `<div class="order-note">"${o.note}"</div>` : ""}
-        ${o.status === "cancelado" ? `<div class="order-cancelled-badge">🚫 Pedido cancelado por el cliente</div>` : `<div class="status-row" data-id="${o.id}"></div>`}
+        ${o.status === "pendiente_pago" && !o.needsContact ? `
+          <div class="payment-check-box" style="background:#FBEBD9; border:1px solid #E8871E; border-radius:12px; padding:10px; margin-top:10px;">
+            <div style="font-weight:800; color:#9C2F1C; font-size:13px;">⏳ Pendiente de verificar abono: ${fmt(o.advance || Math.round(o.total/2))}</div>
+            <div style="font-size:12.5px; margin-top:4px;">N° referencia: ${o.transferRef || "—"}</div>
+            ${o.transferPhoto ? `<img src="${o.transferPhoto}" style="max-width:100%; border-radius:8px; margin-top:6px; cursor:pointer;" data-action="view-photo" />` : ""}
+            <button class="icon-btn" data-action="confirm-payment" style="width:auto; padding:0 14px; margin-top:8px; background:#1a7a3d; color:#fff;">✅ Confirmar pago recibido</button>
+          </div>
+        ` : ""}
+        ${o.status === "pendiente_pago" && o.needsContact ? `
+          <div class="payment-check-box" style="background:#FDEDE2; border:1px solid #b45309; border-radius:12px; padding:10px; margin-top:10px;">
+            <div style="font-weight:800; color:#b45309; font-size:13px;">📞 Cliente pide que lo contacten (aún no ha pagado el abono)</div>
+            <div style="font-size:12.5px; margin-top:4px; font-style:italic;">"${o.contactMsg || "Sin mensaje"}"</div>
+            <button class="icon-btn" data-action="confirm-payment" style="width:auto; padding:0 14px; margin-top:8px; background:#E8871E; color:#fff;">✅ Continuar pedido de todas formas</button>
+          </div>
+        ` : ""}
+        ${o.status === "cancelado" ? `<div class="order-cancelled-badge">🚫 Pedido cancelado por el cliente</div>` : ""}
+        ${o.status !== "cancelado" && o.status !== "pendiente_pago" ? `<div class="status-row" data-id="${o.id}"></div>` : ""}
         ${o.status === "cancelado" ? `<div class="order-actions"><button class="icon-btn" data-action="reactivar">↩️ Reactivar</button></div>` : ""}
       `;
-      if (o.status !== "cancelado") {
+      if (o.status !== "cancelado" && o.status !== "pendiente_pago") {
         const statusRow = card.querySelector(".status-row");
         STATUS_FLOW.forEach((s) => {
           const btn = document.createElement("button");
@@ -477,6 +498,26 @@
       const reactivarBtn = card.querySelector('[data-action="reactivar"]');
       if (reactivarBtn) reactivarBtn.onclick = () => {
         db.ref("orders/" + o.id).update({ status: "nuevo" });
+      };
+
+      const confirmPaymentBtn = card.querySelector('[data-action="confirm-payment"]');
+      if (confirmPaymentBtn) confirmPaymentBtn.onclick = () => {
+        if (!confirm("¿Confirmas que el abono fue recibido?")) return;
+        db.ref("orders/" + o.id).update({ status: "nuevo" });
+      };
+      const photoImg = card.querySelector('[data-action="view-photo"]');
+      if (photoImg) photoImg.onclick = () => window.open(o.transferPhoto, "_blank");
+
+      const whenEditBox = card.querySelector(".order-when-edit");
+      card.querySelector('[data-action="edit-when"]').onclick = () => {
+        whenEditBox.style.display = whenEditBox.style.display === "none" ? "flex" : "none";
+      };
+      card.querySelector('[data-action="save-when"]').onclick = () => {
+        const newDate = card.querySelector(".edit-date-input").value;
+        const newTime = card.querySelector(".edit-time-input").value;
+        if (!newDate || !newTime) { alert("Completa fecha y hora"); return; }
+        db.ref("orders/" + o.id).update({ date: newDate, time: newTime });
+        whenEditBox.style.display = "none";
       };
 
       orderListEl.appendChild(card);
