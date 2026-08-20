@@ -889,7 +889,12 @@
 
   function renderStatusBanner(trackingId, myOrder) {
     const info = STATUS_INFO[myOrder.status] || STATUS_INFO.nuevo;
+    let title = info.title;
     let sub = info.sub;
+    if (myOrder.status === "pendiente_pago" && myOrder.needsContact) {
+      title = "Recibimos tu pedido";
+      sub = "Tu hermana te contactará pronto para coordinar el pago";
+    }
     if (myOrder.status === "listo") {
       sub = myOrder.deliveryType === "domicilio"
         ? "Va en camino hacia ti 🛵"
@@ -901,7 +906,7 @@
     banner.innerHTML = `
       <div class="sb-icon">${info.icon}</div>
       <div>
-        <div class="sb-title">${info.title}</div>
+        <div class="sb-title">${title}</div>
         <div class="sb-sub">${sub}</div>
         ${canCancel ? `
           <div class="sb-actions">
