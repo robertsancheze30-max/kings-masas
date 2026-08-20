@@ -22,24 +22,16 @@
 
   /* ---------- HEADER ---------- */
   header {
-    background: radial-gradient(circle at 20% 15%, #1B2A4A 0%, #101A30 60%, #0B1424 100%);
-    padding: 22px 24px 30px;
+    background: transparent;
+    padding: 0;
     margin: 0;
     position: relative;
     overflow: hidden;
-  }
-  header::before {
-    content: "";
-    position: absolute; inset: 0;
-    background-image: radial-gradient(circle, rgba(232,178,61,0.12) 1.5px, transparent 1.5px);
-    background-size: 26px 26px;
-    pointer-events: none;
+    line-height: 0;
   }
   .logo-full {
     display: block;
-    width: 78%;
-    max-width: 340px;
-    margin: 0 auto;
+    width: 100%;
     height: auto;
     position: relative;
     filter: drop-shadow(0 6px 14px rgba(0,0,0,0.35));
