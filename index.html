@@ -640,18 +640,46 @@
   dateInput.min = today.toISOString().split("T")[0];
   dateInput.value = today.toISOString().split("T")[0];
 
-  // horarios disponibles cada 30 min, 10am - 8pm
+  // horarios disponibles cada 30 min, 10am - 8pm (filtrando los que la tienda bloqueó ese día)
   const timeSelect = document.getElementById("deliveryTime");
-  for (let h = 10; h <= 20; h++) {
-    for (let m of [0, 30]) {
-      if (h === 20 && m === 30) continue;
-      const label = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-      const opt = document.createElement("option");
-      opt.value = label;
-      opt.textContent = label;
-      timeSelect.appendChild(opt);
+  function buildTimeSlots() {
+    const slots = [];
+    for (let h = 10; h <= 20; h++) {
+      for (let m of [0, 30]) {
+        if (h === 20 && m === 30) continue;
+        slots.push(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
+      }
     }
+    return slots;
   }
+  const ALL_TIME_SLOTS = buildTimeSlots();
+
+  function renderTimeOptions() {
+    const date = dateInput.value;
+    db.ref("blockedSlots/" + date).once("value").then((snap) => {
+      const blocked = snap.val() || {};
+      const previousValue = timeSelect.value;
+      timeSelect.innerHTML = "";
+      ALL_TIME_SLOTS.forEach((label) => {
+        if (blocked[label]) return;
+        const opt = document.createElement("option");
+        opt.value = label;
+        opt.textContent = label;
+        timeSelect.appendChild(opt);
+      });
+      if (ALL_TIME_SLOTS.includes(previousValue) && !blocked[previousValue]) {
+        timeSelect.value = previousValue;
+      }
+      if (timeSelect.options.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Sin horarios disponibles este día";
+        timeSelect.appendChild(opt);
+      }
+    });
+  }
+  dateInput.onchange = renderTimeOptions;
+  renderTimeOptions();
 
   // ---------- ENVIAR PEDIDO (a Firebase) ----------
   document.getElementById("submitOrder").onclick = () => {
@@ -680,6 +708,10 @@
     }
     if (deliveryType === "domicilio" && !address) {
       alert("Falta la dirección de entrega");
+      return;
+    }
+    if (!timeSelect.value) {
+      alert("No hay horarios disponibles para la fecha elegida. Prueba otro día.");
       return;
     }
     const noPay = noPaymentCheck.checked;

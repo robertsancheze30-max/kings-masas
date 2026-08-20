@@ -193,6 +193,20 @@
     margin: 18px 4px 10px;
   }
   .sales-total-label { font-size: 13px; color: #8A7462; font-weight: 700; }
+  .hour-slot {
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 13.5px;
+    font-weight: 700;
+    background: #E4F5E9;
+    color: #1a7a3d;
+  }
+  .hour-slot.blocked {
+    background: #FDE8E4;
+    color: #C1442A;
+    text-decoration: line-through;
+  }
   .sales-total-num {
     font-family: "SF Mono", Menlo, monospace;
     font-size: 30px;
@@ -224,6 +238,7 @@
   <div class="tab active" id="tabProducts">🍽️ Menú</div>
   <div class="tab" id="tabOrders">📋 Pedidos</div>
   <div class="tab" id="tabSales">📊 Ventas</div>
+  <div class="tab" id="tabHours">🕒 Horarios</div>
 </div>
 
 <main>
@@ -243,6 +258,18 @@
     <div class="card" id="salesSummaryCard"></div>
     <div class="section-label">Por producto</div>
     <div id="salesByProduct"></div>
+  </div>
+
+  <div class="panel" id="panelHours">
+    <div class="section-label">Horarios de entrega</div>
+    <div class="card" style="margin-bottom:16px;">
+      <label class="field-label">Elige el día</label>
+      <input type="date" id="hoursDatePicker" />
+    </div>
+    <div class="card">
+      <div style="font-size:12.5px; color:#8A7462; margin-bottom:10px;">Toca un horario para bloquearlo/habilitarlo para ese día</div>
+      <div id="hoursGrid" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+    </div>
   </div>
 </main>
 
@@ -576,10 +603,12 @@
   const panelProducts = document.getElementById("panelProducts");
   const panelOrders = document.getElementById("panelOrders");
   const panelSales = document.getElementById("panelSales");
+  const tabHours = document.getElementById("tabHours");
+  const panelHours = document.getElementById("panelHours");
 
   function setActiveTab(tab, panel) {
-    [tabProducts, tabOrders, tabSales].forEach((t) => t.classList.remove("active"));
-    [panelProducts, panelOrders, panelSales].forEach((p) => p.classList.remove("active"));
+    [tabProducts, tabOrders, tabSales, tabHours].forEach((t) => t.classList.remove("active"));
+    [panelProducts, panelOrders, panelSales, panelHours].forEach((p) => p.classList.remove("active"));
     tab.classList.add("active");
     panel.classList.add("active");
   }
@@ -587,6 +616,49 @@
   tabProducts.onclick = () => { setActiveTab(tabProducts, panelProducts); renderNewOrdersAlert(); renderProductsAdmin(); };
   tabOrders.onclick = () => { setActiveTab(tabOrders, panelOrders); renderOrders(); };
   tabSales.onclick = () => { setActiveTab(tabSales, panelSales); renderSales(); };
+  tabHours.onclick = () => { setActiveTab(tabHours, panelHours); renderHours(); };
+
+  // ---------- HORARIOS DISPONIBLES POR DÍA ----------
+  const hoursDatePicker = document.getElementById("hoursDatePicker");
+  const hoursGrid = document.getElementById("hoursGrid");
+  const todayStr = new Date().toISOString().split("T")[0];
+  hoursDatePicker.min = todayStr;
+  hoursDatePicker.value = todayStr;
+
+  function buildTimeSlots() {
+    const slots = [];
+    for (let h = 10; h <= 20; h++) {
+      for (let m of [0, 30]) {
+        if (h === 20 && m === 30) continue;
+        slots.push(`${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`);
+      }
+    }
+    return slots;
+  }
+  const TIME_SLOTS = buildTimeSlots();
+
+  function renderHours() {
+    const date = hoursDatePicker.value || todayStr;
+    hoursGrid.innerHTML = "";
+    db.ref("blockedSlots/" + date).once("value").then((snap) => {
+      const blocked = snap.val() || {};
+      hoursGrid.innerHTML = "";
+      TIME_SLOTS.forEach((time) => {
+        const isBlocked = !!blocked[time];
+        const btn = document.createElement("button");
+        btn.className = "hour-slot" + (isBlocked ? " blocked" : "");
+        btn.textContent = time;
+        btn.onclick = () => {
+          const newBlocked = !isBlocked;
+          db.ref("blockedSlots/" + date + "/" + time).set(newBlocked ? true : null).then(() => {
+            renderHours();
+          });
+        };
+        hoursGrid.appendChild(btn);
+      });
+    });
+  }
+  hoursDatePicker.onchange = renderHours;
 
   // ---------- CARGAR DATOS DESDE FIREBASE (en vivo) ----------
   let productsSeeded = false;
