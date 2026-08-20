@@ -74,11 +74,12 @@
   .section-label {
     font-family: "Apple Chancery", "Lucida Handwriting", "Bradley Hand", "Segoe Script", cursive;
     font-size: 32px;
-    font-weight: 400;
+    font-weight: 700;
     letter-spacing: 0.3px;
     text-transform: none;
     text-align: center;
     color: #F5B800;
+    -webkit-text-stroke: 0.6px #F5B800;
     text-shadow: 0 1px 3px rgba(0,0,0,0.15);
     margin: 4px 4px 12px;
   }
@@ -410,16 +411,16 @@
 
   // ---------- CATÁLOGO (Firebase, con respaldo local por si no hay conexión) ----------
   const DEFAULT_PRODUCTS = [
-    { id: "p1", name: "Tequeños de queso (50 uds)", desc: "Tamaño 6cm", price: 12000, icon: "🧀", available: true },
-    { id: "p2", name: "Tequeños de queso (20 uds)", desc: "Tamaño 6cm", price: 4000, icon: "🧀", available: true },
-    { id: "p3", name: "Tequeños de queso (25 uds)", desc: "Tamaño 12cm", price: 13000, icon: "🧀", available: true },
-    { id: "p4", name: "Tequeños de queso (10 uds)", desc: "Tamaño 20cm", price: 9000, icon: "🧀", available: true },
-    { id: "p5", name: "Tequeños de chocolate (20 uds)", desc: "", price: 5000, icon: "🍫", available: true },
-    { id: "p6", name: "Tequeños de queso y tocineta (20 uds)", desc: "", price: 6000, icon: "🥓", available: true },
-    { id: "p7", name: "Tequeños de queso y guayaba (20 uds)", desc: "", price: 6000, icon: "🍈", available: true },
-    { id: "p8", name: "Masa para empanadas 18cm", desc: "Paquete de 20 discos", price: 4000, icon: "🫓", available: true },
-    { id: "p9", name: "Masa para empanadas 22cm", desc: "Paquete de 15 discos", price: 3800, icon: "🫓", available: true },
-    { id: "p10", name: "Masa para empanadas 11cm", desc: "Paquete de 25 discos", price: 3400, icon: "🫓", available: true },
+    { id: "p1", name: "Tequeños de queso (50 uds)", desc: "Tamaño 6cm", price: 12000, icon: "🧀", available: true, order: 1 },
+    { id: "p2", name: "Tequeños de queso (20 uds)", desc: "Tamaño 6cm", price: 4000, icon: "🧀", available: true, order: 2 },
+    { id: "p3", name: "Tequeños de queso (25 uds)", desc: "Tamaño 12cm", price: 13000, icon: "🧀", available: true, order: 3 },
+    { id: "p4", name: "Tequeños de queso (10 uds)", desc: "Tamaño 20cm", price: 9000, icon: "🧀", available: true, order: 4 },
+    { id: "p5", name: "Tequeños de chocolate (20 uds)", desc: "", price: 5000, icon: "🍫", available: true, order: 5 },
+    { id: "p6", name: "Tequeños de queso y tocineta (20 uds)", desc: "", price: 6000, icon: "🥓", available: true, order: 6 },
+    { id: "p7", name: "Tequeños de queso y guayaba (20 uds)", desc: "", price: 6000, icon: "🍈", available: true, order: 7 },
+    { id: "p8", name: "Masa para empanadas 11cm", desc: "Paquete de 25 discos", price: 3400, icon: "🫓", available: true, order: 8 },
+    { id: "p9", name: "Masa para empanadas 18cm", desc: "Paquete de 20 discos", price: 4000, icon: "🫓", available: true, order: 9 },
+    { id: "p10", name: "Masa para empanadas 22cm", desc: "Paquete de 15 discos", price: 3800, icon: "🫓", available: true, order: 10 },
   ];
 
   function fmt(n) {
@@ -749,7 +750,7 @@
   db.ref("products").on("value", (snap) => {
     const val = snap.val();
     if (val) {
-      products = Object.values(val);
+      products = Object.values(val).sort((a, b) => (a.order || 0) - (b.order || 0));
     } else {
       products = DEFAULT_PRODUCTS;
       if (!seeded) {
