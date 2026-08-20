@@ -256,6 +256,8 @@
 
   <div class="panel" id="panelSales">
     <div class="card" id="salesSummaryCard"></div>
+    <div class="section-label">Por semana</div>
+    <div id="salesByWeek"></div>
     <div class="section-label">Por producto</div>
     <div id="salesByProduct"></div>
   </div>
@@ -552,6 +554,18 @@
   }
 
   // ---------- VENTAS (contabilidad simple) ----------
+  function getWeekRange(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay();
+    const diffToMonday = (day === 0 ? -6 : 1) - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diffToMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmtD = (x) => x.toLocaleDateString("es-CL", { day: "2-digit", month: "2-digit" });
+    return { key: monday.toISOString().split("T")[0], label: `${fmtD(monday)} - ${fmtD(sunday)}` };
+  }
+
   function renderSales() {
     const orders = ordersCache.filter((o) => o.status === "entregado");
 
@@ -561,8 +575,48 @@
       <div class="sales-total-label">Total vendido (pedidos entregados)</div>
       <div class="sales-total-num">${fmt(totalVendido)}</div>
       <div class="sales-sub">${orders.length} pedido(s) entregado(s)</div>
+      <button class="icon-btn" id="clearSalesBtn" style="width:auto; padding:0 14px; margin-top:12px; background:#C1442A; color:#fff;">🗑️ Borrar historial de ventas</button>
     `;
+    document.getElementById("clearSalesBtn").onclick = () => {
+      if (!confirm("¿Seguro que quieres borrar TODO el historial de pedidos entregados? Esto no se puede deshacer.")) return;
+      const updates = {};
+      orders.forEach((o) => { updates[o.id] = null; });
+      db.ref("orders").update(updates);
+    };
 
+    // ---------- POR SEMANA ----------
+    const byWeek = {};
+    orders.forEach((o) => {
+      const { key, label } = getWeekRange(o.date);
+      if (!byWeek[key]) byWeek[key] = { label, total: 0, count: 0 };
+      byWeek[key].total += o.total;
+      byWeek[key].count += 1;
+    });
+    const weekEntries = Object.entries(byWeek).sort((a, b) => b[0].localeCompare(a[0]));
+
+    const weekBox = document.getElementById("salesByWeek");
+    if (weekEntries.length === 0) {
+      weekBox.innerHTML = '<div class="empty-msg">Todavía no hay ventas registradas</div>';
+    } else {
+      const weekCard = document.createElement("div");
+      weekCard.className = "card";
+      weekEntries.forEach(([key, data]) => {
+        const row = document.createElement("div");
+        row.className = "sales-prod-row";
+        row.innerHTML = `
+          <div>
+            <div class="sales-prod-name">Semana ${data.label}</div>
+            <div class="sales-prod-qty">${data.count} pedido(s)</div>
+          </div>
+          <div class="sales-prod-amount">${fmt(data.total)}</div>
+        `;
+        weekCard.appendChild(row);
+      });
+      weekBox.innerHTML = "";
+      weekBox.appendChild(weekCard);
+    }
+
+    // ---------- POR PRODUCTO ----------
     const byProduct = {};
     orders.forEach((o) => {
       o.items.forEach((it) => {
