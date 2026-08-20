@@ -6,12 +6,15 @@
 <meta name="color-scheme" content="light" />
 <meta name="theme-color" content="#FFFFFF" />
 <title>Panel - King'ss Masas C.A.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,600&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background-color: #FFFFFF !important; }
+  html, body { background-color: #FBF3E7 !important; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: #FFFFFF;
+    font-family: "Nunito Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #FBF3E7;
     color: #3A2317;
     min-height: 100vh;
     padding-bottom: 40px;
@@ -20,6 +23,7 @@
     background: transparent;
     padding: 0;
     margin: 0;
+    line-height: 0;
   }
   .logo-full {
     display: block;
@@ -31,31 +35,33 @@
     display: flex;
     gap: 8px;
     padding: 16px 16px 0;
-    background: #FFFFFF;
+    background: #FBF3E7;
   }
   .tab {
     flex: 1;
     text-align: center;
     padding: 12px;
     border-radius: 12px;
-    background: #fff;
+    background: #FFFDF8;
     border: 1px solid #F0E2CE;
     font-weight: 700;
     font-size: 14px;
     color: #8A7462;
   }
-  .tab.active { background: #C1442A; color: #fff; border-color: #C1442A; }
+  .tab.active { background: linear-gradient(135deg, #E8871E, #C1442A); color: #fff; border-color: #C1442A; }
 
-  main { padding: 16px; background: #FFFFFF; }
+  main { padding: 16px; background: #FBF3E7; }
   .panel { display: none; }
   .panel.active { display: block; }
 
   .card {
-    background: #fff;
+    background: #FFFDF8;
     border-radius: 16px;
     padding: 14px;
     margin-bottom: 12px;
     border: 1px solid #F0E2CE;
+    border-left: 3px solid #E8B23D;
+    box-shadow: 0 3px 10px rgba(58,35,23,0.06);
   }
 
   .new-orders-alert {
@@ -99,9 +105,9 @@
     overflow: hidden;
   }
   .prod-info { flex: 1; min-width: 0; }
-  .prod-name { font-weight: 700; font-size: 16px; }
+  .prod-name { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 16.5px; }
   .prod-desc { font-size: 12.5px; color: #8A7462; margin-top: 2px; }
-  .prod-price { font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; color: #9C2F1C; margin-top: 6px; }
+  .prod-price { font-family: "SF Mono", Menlo, monospace; font-size: 14px; font-weight: 800; color: #9C2F1C; margin-top: 7px; background: #FBEBD9; display: inline-block; padding: 2px 9px; border-radius: 999px; }
   .prod-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .icon-btn {
     width: 34px; height: 34px; border-radius: 10px; border: none;
@@ -143,7 +149,7 @@
     background: #FBF3E7; width: 100%; max-height: 90vh; overflow-y: auto;
     border-radius: 24px 24px 0 0; padding: 22px 20px 30px;
   }
-  .sheet-title { font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+  .sheet-title { font-family: "Fraunces", Georgia, serif; font-size: 21px; font-weight: 800; color: #14213D; }
   .sheet-close { float: right; background: none; border: none; font-size: 20px; color: #8A7462; }
   label.field-label { display: block; font-size: 13px; font-weight: 700; color: #6b5645; margin: 14px 0 6px; }
   input[type="text"], input[type="number"] {
@@ -154,6 +160,7 @@
     width: 100%; padding: 15px; border: none; border-radius: 14px;
     background: linear-gradient(135deg, #E8871E, #C1442A); color: #fff;
     font-size: 15px; font-weight: 800; margin-top: 18px;
+    box-shadow: 0 6px 16px rgba(193,68,42,0.35);
   }
 
   /* pedidos */
@@ -238,7 +245,7 @@
   <div class="tab active" id="tabOrders">📋 Pedidos</div>
   <div class="tab" id="tabSales">📊 Ventas</div>
   <div class="tab" id="tabHours">🕒 Horarios</div>
-  <div class="tab" id="tabProducts">🍽️ Menú</div>
+  <div class="tab" id="tabProducts">🍴 Menú</div>
 </div>
 
 <main>
