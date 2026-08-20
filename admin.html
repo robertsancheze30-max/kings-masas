@@ -332,6 +332,44 @@
 
   let productsCache = [];
   let ordersCache = [];
+  let salesHistoryCache = [];
+  let knownOrderIds = new Set();
+  let firstOrdersLoad = true;
+
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+
+  function playNewOrderSound() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [880, 1180].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.18);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.18 + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + i * 0.18);
+        osc.stop(ctx.currentTime + i * 0.18 + 0.35);
+      });
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+
+  function notifyNewOrder(order) {
+    playNewOrderSound();
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification("🔔 Nuevo pedido - King'ss Masas", {
+        body: `${order.customerName} · ${fmt(order.total)}`,
+      });
+    }
+    document.title = "🔔 Nuevo pedido - King'ss Masas";
+    setTimeout(() => { document.title = "Panel - King'ss Masas C.A."; }, 6000);
+  }
+
 
   function saveProducts(list) {
     const obj = {};
@@ -510,6 +548,7 @@
         ${o.status === "cancelado" ? `<div class="order-cancelled-badge">🚫 Pedido cancelado por el cliente</div>` : ""}
         ${o.status !== "cancelado" && o.status !== "pendiente_pago" ? `<div class="status-row" data-id="${o.id}"></div>` : ""}
         ${o.status === "cancelado" ? `<div class="order-actions"><button class="icon-btn" data-action="reactivar">↩️ Reactivar</button></div>` : ""}
+        <div class="order-actions"><button class="icon-btn danger" data-action="delete-order">🗑️ Eliminar pedido</button></div>
       `;
       if (o.status !== "cancelado" && o.status !== "pendiente_pago") {
         const statusRow = card.querySelector(".status-row");
@@ -518,7 +557,16 @@
           btn.className = "status-btn" + (o.status === s ? " current" : "");
           btn.textContent = STATUS_LABEL[s];
           btn.onclick = () => {
-            db.ref("orders/" + o.id).update({ status: s });
+            if (s === "entregado") {
+              db.ref("orders/" + o.id).update({ status: "entregado" });
+              const archived = { ...o, status: "entregado", deliveredAt: Date.now() };
+              delete archived.id;
+              db.ref("salesHistory/" + o.id).set(archived).then(() => {
+                setTimeout(() => db.ref("orders/" + o.id).remove(), 3000);
+              });
+            } else {
+              db.ref("orders/" + o.id).update({ status: s });
+            }
           };
           statusRow.appendChild(btn);
         });
@@ -527,6 +575,11 @@
       const reactivarBtn = card.querySelector('[data-action="reactivar"]');
       if (reactivarBtn) reactivarBtn.onclick = () => {
         db.ref("orders/" + o.id).update({ status: "nuevo" });
+      };
+
+      card.querySelector('[data-action="delete-order"]').onclick = () => {
+        if (!confirm(`¿Eliminar el pedido de ${o.customerName}? Esto no se puede deshacer.`)) return;
+        db.ref("orders/" + o.id).remove();
       };
 
       const confirmPaymentBtn = card.querySelector('[data-action="confirm-payment"]');
@@ -567,7 +620,7 @@
   }
 
   function renderSales() {
-    const orders = ordersCache.filter((o) => o.status === "entregado");
+    const orders = salesHistoryCache;
 
     const summaryCard = document.getElementById("salesSummaryCard");
     const totalVendido = orders.reduce((sum, o) => sum + o.total, 0);
@@ -578,10 +631,10 @@
       <button class="icon-btn" id="clearSalesBtn" style="width:auto; padding:0 14px; margin-top:12px; background:#C1442A; color:#fff;">🗑️ Borrar historial de ventas</button>
     `;
     document.getElementById("clearSalesBtn").onclick = () => {
-      if (!confirm("¿Seguro que quieres borrar TODO el historial de pedidos entregados? Esto no se puede deshacer.")) return;
+      if (!confirm("¿Seguro que quieres borrar TODO el historial de ventas? Esto no se puede deshacer.")) return;
       const updates = {};
       orders.forEach((o) => { updates[o.id] = null; });
-      db.ref("orders").update(updates);
+      db.ref("salesHistory").update(updates);
     };
 
     // ---------- POR SEMANA ----------
@@ -737,8 +790,29 @@
     ordersCache = val
       ? Object.entries(val).map(([id, o]) => ({ ...o, id }))
       : [];
+
+    if (firstOrdersLoad) {
+      ordersCache.forEach((o) => knownOrderIds.add(o.id));
+      firstOrdersLoad = false;
+    } else {
+      ordersCache.forEach((o) => {
+        if (!knownOrderIds.has(o.id)) {
+          knownOrderIds.add(o.id);
+          notifyNewOrder(o);
+        }
+      });
+    }
+
     renderNewOrdersAlert();
     if (panelOrders.classList.contains("active")) renderOrders();
+    if (panelSales.classList.contains("active")) renderSales();
+  });
+
+  db.ref("salesHistory").on("value", (snap) => {
+    const val = snap.val();
+    salesHistoryCache = val
+      ? Object.entries(val).map(([id, o]) => ({ ...o, id }))
+      : [];
     if (panelSales.classList.contains("active")) renderSales();
   });
 </script>
